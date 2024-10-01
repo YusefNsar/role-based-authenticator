@@ -26,6 +26,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           dbConfig['database'] = configService.get('database.name');
           dbConfig['synchronize'] = true;
           dbConfig['autoLoadEntities'] = true;
+          dbConfig['ssl'] = true;
 
           dbConfig['options'] = {
             trustServerCertificate: true,
