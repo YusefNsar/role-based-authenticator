@@ -10,7 +10,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ select: false })
   password: string;
   
   @Column()
@@ -35,6 +35,8 @@ export class User {
   @BeforeUpdate()
   @BeforeInsert()
   async hashPassword() {
-    this.password = await bcrypt.hash(this.password, 10);
+    if (this.password && this.password.length !== 60) {
+      this.password = await bcrypt.hash(this.password, 10);
+    }
   }
 }

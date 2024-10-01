@@ -5,7 +5,13 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as sendgridMail from '@sendgrid/mail';
 import { User } from './entities/user.entity';
-import { CreateUserDto, ForgotPasswordDTO, LoginUserDto, ResetPasswordDTO, VerifyOtpDto } from './dto';
+import {
+  CreateUserDto,
+  ForgotPasswordDTO,
+  LoginUserDto,
+  ResetPasswordDTO,
+  VerifyOtpDto,
+} from './dto';
 
 @Injectable()
 export class AuthService {
@@ -20,8 +26,11 @@ export class AuthService {
   async register(createUserDto: CreateUserDto) {
     const { email } = createUserDto;
 
-    const existingUser = await this.userRepository.findOne({ where: { email } });
-    if (existingUser) {
+    const existingUser = await this.userRepository.findOne({
+      where: { email },
+    });
+
+    if (existingUser && existingUser.verified) {
       throw new UnauthorizedException('User already exists');
     }
 
@@ -31,24 +40,46 @@ export class AuthService {
       password,
     });
 
-    await this.userRepository.save(user);
+    await this.userRepository.upsert(user, ['email']);
     await this.sendNewAccountOTPEmail(email, password);
 
-    return { success: true, message: 'User registered successfully, check email for the OTP' };
+    return {
+      success: true,
+      message: 'User registered successfully, check email for the OTP',
+    };
   }
 
   async login(loginUserDto: LoginUserDto) {
     const { email, password } = loginUserDto;
-    const user = await this.userRepository.findOne({ where: { email } });
-
-    if (!user || !user.verified || !(await bcrypt.compare(password, user.password))) {
+    const user = await this.userRepository.findOne({
+      where: { email },
+      select: [
+        'password',
+        'verified',
+        'id',
+        'role',
+        'address',
+        'name',
+        'email',
+      ],
+    });
+    
+    if (
+      !user ||
+      !user.verified ||
+      !(await bcrypt.compare(password, user.password))
+    ) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    
+
     delete user.password;
-    
-    const payload = { email: user.email, sub: user.id, role: user.role, ...user };
-    console.log(payload)
+
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
+      ...user,
+    };
     const accessToken = this.jwtService.sign(payload);
 
     return { accessToken, user };
@@ -56,7 +87,10 @@ export class AuthService {
 
   async verifyOTP(verifyOtpDto: VerifyOtpDto) {
     const { email, otp } = verifyOtpDto;
-    const user = await this.userRepository.findOne({ where: { email } });
+    const user = await this.userRepository.findOne({
+      where: { email },
+      select: ['password', 'verified', 'id'],
+    });
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -64,7 +98,7 @@ export class AuthService {
       throw new UnauthorizedException('User already verified');
     } else if (!(await bcrypt.compare(otp, user.password))) {
       throw new UnauthorizedException('Invalid OTP');
-    } 
+    }
 
     user.verified = true;
     await this.userRepository.save(user);
@@ -74,7 +108,10 @@ export class AuthService {
 
   async resetPassword(resetPasswordDTO: ResetPasswordDTO) {
     const { email, otp, password } = resetPasswordDTO;
-    const user = await this.userRepository.findOne({ where: { email } });
+    const user = await this.userRepository.findOne({
+      where: { email },
+      select: ['password', 'verified', 'id'],
+    });
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -107,7 +144,10 @@ export class AuthService {
 
     await this.sendResetPasswordOTPEmail(email, password);
 
-    return { success: true, message: 'Password reset OTP email sent successfully' };
+    return {
+      success: true,
+      message: 'Password reset OTP email sent successfully',
+    };
   }
 
   private async sendNewAccountOTPEmail(email: string, password: string) {
