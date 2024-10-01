@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, BeforeInsert } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, BeforeInsert, BeforeUpdate } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Role } from 'src/common/types/role.enum';
 
@@ -12,6 +12,12 @@ export class User {
 
   @Column()
   password: string;
+  
+  @Column()
+  name: string;
+  
+  @Column()
+  address: string;
 
   @Column({
     type: 'enum',
@@ -20,6 +26,13 @@ export class User {
   })
   role: Role;
 
+  @Column({
+    type: 'boolean',
+    default: false
+  })
+  verified: boolean;
+
+  @BeforeUpdate()
   @BeforeInsert()
   async hashPassword() {
     this.password = await bcrypt.hash(this.password, 10);

@@ -5,16 +5,17 @@ export default () => ({
     logRequestData: process.env.LOG_REQUEST_DATA || false,
   },
   jwt: {
-    secret: process.env.JWT_SECRET || 'super_secret_321',
-    expiresIn: process.env.JWT_EXPIRES_IN || '240s',
-    refreshSecret: process.env.JWT_SECRET_REFRESH,
-    refreshExpiresIn: process.env.JWT_EXPIRES_IN_REFRESH || '300s',
+    secret: process.env.JWT_SECRET || 'secret_123',
   },
   database: {
+    type: process.env.DB_TYPE || 'postgres',
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT) || 1433,
     user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    name: process.env.DB_NAME || 'user-service',
+    password: process.env.DB_PASSWORD || '',
+    name: process.env.DB_NAME || 'default',
   },
+  email: {
+    sendgridApiKey: process.env.SENDGRID_API_KEY,
+  }
 });

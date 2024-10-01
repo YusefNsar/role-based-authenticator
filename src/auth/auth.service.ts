@@ -5,7 +5,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as sendgridMail from '@sendgrid/mail';
 import { User } from './entities/user.entity';
-import { CreateUserDto, LoginUserDto } from './dto';
+import { CreateUserDto, ForgotPasswordDTO, LoginUserDto, ResetPasswordDTO, VerifyOtpDto } from './dto';
 
 @Injectable()
 export class AuthService {
@@ -32,32 +32,99 @@ export class AuthService {
     });
 
     await this.userRepository.save(user);
-    await this.sendPasswordEmail(email, password);
+    await this.sendNewAccountOTPEmail(email, password);
 
-    return { success: true, message: 'User registered successfully, check email for password' };
+    return { success: true, message: 'User registered successfully, check email for the OTP' };
   }
 
   async login(loginUserDto: LoginUserDto) {
     const { email, password } = loginUserDto;
     const user = await this.userRepository.findOne({ where: { email } });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    if (!user || !user.verified || !(await bcrypt.compare(password, user.password))) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
-    const payload = { email: user.email, sub: user.id, role: user.role };
-    const accessToken = this.jwtService.sign(payload);
-
+    
     delete user.password;
+    
+    const payload = { email: user.email, sub: user.id, role: user.role, ...user };
+    console.log(payload)
+    const accessToken = this.jwtService.sign(payload);
 
     return { accessToken, user };
   }
 
-  async sendPasswordEmail(email: string, password: string) {
+  async verifyOTP(verifyOtpDto: VerifyOtpDto) {
+    const { email, otp } = verifyOtpDto;
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    } else if (user.verified) {
+      throw new UnauthorizedException('User already verified');
+    } else if (!(await bcrypt.compare(otp, user.password))) {
+      throw new UnauthorizedException('Invalid OTP');
+    } 
+
+    user.verified = true;
+    await this.userRepository.save(user);
+
+    return { success: true, message: 'User verified successfully' };
+  }
+
+  async resetPassword(resetPasswordDTO: ResetPasswordDTO) {
+    const { email, otp, password } = resetPasswordDTO;
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    } else if (!user.verified) {
+      throw new UnauthorizedException('User not verified');
+    } else if (!(await bcrypt.compare(otp, user.password))) {
+      throw new UnauthorizedException('Invalid OTP');
+    }
+
+    user.password = password;
+    await this.userRepository.save(user);
+
+    return { success: true, message: 'Password reset successfully' };
+  }
+
+  async forgotPassword(forgotPasswordDTO: ForgotPasswordDTO) {
+    const { email } = forgotPasswordDTO;
+    const user = await this.userRepository.findOne({ where: { email } });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    } else if (!user.verified) {
+      throw new UnauthorizedException('User not verified');
+    }
+
+    const password = this.generateOTP();
+
+    user.password = password;
+    await this.userRepository.save(user);
+
+    await this.sendResetPasswordOTPEmail(email, password);
+
+    return { success: true, message: 'Password reset OTP email sent successfully' };
+  }
+
+  private async sendNewAccountOTPEmail(email: string, password: string) {
     const msg = {
       to: email,
-      from: 'noreply@yourapp.com',
-      subject: 'Your New Account Password',
+      from: 'yusefnsar912@gmail.com',
+      subject: 'Your New Account OTP',
+      text: `Your temporary password is: ${password}`,
+    };
+    await sendgridMail.send(msg);
+  }
+
+  private async sendResetPasswordOTPEmail(email: string, password: string) {
+    const msg = {
+      to: email,
+      from: 'yusefnsar912@gmail.com',
+      subject: 'Reset Password OTP',
       text: `Your temporary password is: ${password}`,
     };
     await sendgridMail.send(msg);

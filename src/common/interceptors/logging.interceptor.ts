@@ -14,10 +14,10 @@ export class LoggingInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
-    if (this.configService.get('LOG_HEADERS') === 'true') {
+    if (this.configService.get('logging.logHeaders') === 'true') {
       this.logger.log(`[Request headers]: ${JSON.stringify(request.headers)}`);
     }
-    if (this.configService.get('LOG_REQUEST_DATA') === 'true') {
+    if (this.configService.get('logging.logRequestData') === 'true') {
       this.logger.log(`[Request body]: ${JSON.stringify(request.body)}`);
     }
     return next.handle();
