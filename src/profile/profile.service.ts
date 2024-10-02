@@ -17,8 +17,6 @@ export class ProfileService {
       throw new Error('User not found');
     }
 
-    delete user.password;
-
     return user;
   }
 
@@ -32,8 +30,6 @@ export class ProfileService {
     user.address = updateProfileDto.address;
 
     await this.userRepository.save(user);
-  
-    delete user.password;
 
     return user;
   }
