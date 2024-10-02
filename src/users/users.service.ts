@@ -33,6 +33,7 @@ export class UsersService {
     }
 
     const user = this.userRepository.create(createUserDto);
+    user.verified = true;
 
     await this.userRepository.save(user);
     return await this.userRepository.findOne({ where: { id: user.id } });
